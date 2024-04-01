@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import { GL, initGL, updateTextures } from "./gl";
 import { Frame } from "./frame";
-import { ProgressBar } from "./ProgressBar";
 import { Pause, Play, Stop } from "@phosphor-icons/react";
 
 const webSocketUrl = "http://localhost:8080/websocket";
@@ -117,36 +116,58 @@ export const VideoPlayer = () => {
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-col relative">
-        <canvas ref={canvasRef} width={480} height={270}></canvas>
-        <span className="absolute top-0 right-0 bg-slate-900/80 p-1 text-neutral-200">
-          {frame}/{metadata.frameCount}
-        </span>
-        <progress
-          className="[&::-webkit-progress-bar]:bg-black/30
-        [&::-webkit-progress-value]:bg-red-500
-        [&::-moz-progress-bar]:bg-red-500
-         w-full absolute bottom-0"
-          value={frame}
-          max={metadata.frameCount}
-        />
-      </div>
+    <div className="relative flex flex-col">
+      <canvas ref={canvasRef} width={480} height={270}></canvas>
+      <span className="absolute top-0 right-0 bg-slate-900/60 p-1 text-neutral-200">
+        {frame}/{metadata.frameCount}
+      </span>
+      <Controls
+        playPause={playPause}
+        stop={stop}
+        playing={playing}
+        frameCount={metadata.frameCount}
+        frame={frame}
+      />
+    </div>
+  );
+};
 
-      <div className="flex gap-2">
-        <button
-          className="bg-slate-900 text-neutral-200 p-4 rounded-full"
-          onClick={playPause}
-          disabled={metadata.frameCount === 0}
-        >
-          {playing ? <Pause /> : <Play />}
-        </button>
-        <button
-          className="bg-slate-900 text-neutral-200 p-4 rounded-full"
-          onClick={stop}
-        >
-          <Stop />
-        </button>
+export const Controls = ({
+  playPause,
+  stop,
+  playing,
+  frameCount,
+  frame,
+}: {
+  playPause: () => void;
+  stop: () => void;
+  playing: boolean;
+  frameCount: number;
+  frame: number;
+}) => {
+  return (
+    <div className="absolute bottom-0 w-full text-white">
+      <div className="flex flex-col">
+        <progress
+          className="h-1 w-full
+        [&::-webkit-progress-bar]:bg-black/30
+        [&::-webkit-progress-value]:bg-red-500
+        [&::-moz-progress-bar]:bg-red-500"
+          value={frame}
+          max={frameCount}
+        />
+        <div>
+          <button
+            className="p-2"
+            onClick={playPause}
+            disabled={frameCount === 0}
+          >
+            {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
+          </button>
+          <button className="p-2" onClick={stop}>
+            <Stop weight="fill" />
+          </button>
+        </div>
       </div>
     </div>
   );
