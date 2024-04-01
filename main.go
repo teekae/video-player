@@ -23,13 +23,13 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	frames, err := loadFrames("nfl.mp4")
+	video, err := loadVideo("nfl.mp4")
 	if err != nil {
 		log.Fatalf("failed to load frames: %v", err)
 
 	}
 
-	http.HandleFunc("/websocket", serveWs(frames))
+	http.HandleFunc("/websocket", serveWs(video))
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", 8080)}
 

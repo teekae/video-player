@@ -1,10 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"math/big"
 	"os"
 	"os/exec"
 )
@@ -16,50 +14,38 @@ type Frame struct {
 	FrameNumber int    `json:"frameNumber"`
 }
 
-type videoMetadata struct {
-	Streams []struct {
-		Width     int     `json:"width"`
-		Height    int     `json:"height"`
-		Codec     string  `json:"codec_name"`
-		FrameRate big.Rat `json:"r_frame_rate"`
-	} `json:"streams"`
+type Metadata struct {
+	FrameCount int `json:"frameCount"`
 }
 
-func getMetadata(videoPath string) (videoMetadata, error) {
-	cmd := exec.Command("ffprobe",
-		"-v", "quiet",
-		"-show_streams",
-		"-select_streams", "v",
-		"-show_format",
-		"-print_format", "json",
-		videoPath,
-	)
-
-	cmd.Stderr = os.Stderr
-
-	output, err := cmd.Output()
-	if err != nil {
-		return videoMetadata{}, fmt.Errorf("failed to get metadata: %w", err)
-	}
-
-	var metadata videoMetadata
-	if err := json.Unmarshal(output, &metadata); err != nil {
-		return videoMetadata{}, fmt.Errorf("failed to unmarshal metadata: %w", err)
-	}
-
-	return metadata, nil
+type Video struct {
+	frames   []Frame
+	metadata Metadata
 }
 
-func loadFrames(videoPath string) ([]Frame, error) {
-
-	metadata, err := getMetadata(videoPath)
+func loadVideo(videoPath string) (*Video, error) {
+	metadata, err := loadVideoMetadata(videoPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get metadata: %w", err)
+		return nil, fmt.Errorf("failed to load metadata: %w", err)
 	}
 
 	if len(metadata.Streams) == 0 {
 		return nil, fmt.Errorf("no video streams found")
 	}
+
+	frames, err := loadFrames(videoPath, metadata)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to load frames: %w", err)
+	}
+
+	return &Video{
+		frames:   frames,
+		metadata: Metadata{FrameCount: len(frames)},
+	}, nil
+}
+
+func loadFrames(videoPath string, metadata videoMetadata) ([]Frame, error) {
 
 	file, err := os.Open(videoPath)
 	if err != nil {

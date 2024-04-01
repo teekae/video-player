@@ -15,7 +15,7 @@ import (
 
 var upgrader = websocket.Upgrader{}
 
-func serveWs(frames []Frame) func(w http.ResponseWriter, r *http.Request) {
+func serveWs(video *Video) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
@@ -27,7 +27,7 @@ func serveWs(frames []Frame) func(w http.ResponseWriter, r *http.Request) {
 
 		defer ws.Close()
 
-		err = websocketServer(ws, frames, r.Context())
+		err = websocketServer(ws, video, r.Context())
 		if err != nil {
 			log.Println(err)
 		}
@@ -41,10 +41,6 @@ type Message struct {
 
 type RequestFrame struct {
 	Frame int `json:"frame"`
-}
-
-type Metadata struct {
-	FrameCount int `json:"frameCount"`
 }
 
 func sendFrame(ws *websocket.Conn, frames []Frame, frameNumber int) error {
@@ -67,10 +63,10 @@ func sendFrame(ws *websocket.Conn, frames []Frame, frameNumber int) error {
 }
 
 // websocketServer is called for every new inbound WebSocket
-func websocketServer(ws *websocket.Conn, frames []Frame, ctx context.Context) error {
+func websocketServer(ws *websocket.Conn, video *Video, ctx context.Context) error {
 
 	// Send metadata
-	payload, err := json.Marshal(Metadata{FrameCount: len(frames)})
+	payload, err := json.Marshal(video.metadata)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal metadata: %w", err)
 	}
@@ -102,7 +98,7 @@ func websocketServer(ws *websocket.Conn, frames []Frame, ctx context.Context) er
 					continue
 				}
 
-				sendFrame(ws, frames, reqFrame.Frame)
+				sendFrame(ws, video.frames, reqFrame.Frame)
 				continue
 			}
 
