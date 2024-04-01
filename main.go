@@ -23,7 +23,7 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	video, err := loadVideo("nfl.mp4")
+	video, err := loadVideo("video.mp4")
 	if err != nil {
 		log.Fatalf("failed to load frames: %v", err)
 
