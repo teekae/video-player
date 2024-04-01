@@ -117,7 +117,7 @@ export const VideoPlayer = () => {
 
   return (
     <div className="relative flex flex-col">
-      <canvas ref={canvasRef} width={480} height={270}></canvas>
+      <canvas ref={canvasRef} width={960} height={540}></canvas>
       <span className="absolute top-0 right-0 bg-slate-900/60 p-1 text-neutral-200">
         {frame}/{metadata.frameCount}
       </span>

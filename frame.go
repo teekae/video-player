@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"os/exec"
 )
@@ -14,7 +16,51 @@ type Frame struct {
 	FrameNumber int    `json:"frameNumber"`
 }
 
+type videoMetadata struct {
+	Streams []struct {
+		Width     int     `json:"width"`
+		Height    int     `json:"height"`
+		Codec     string  `json:"codec_name"`
+		FrameRate big.Rat `json:"r_frame_rate"`
+	} `json:"streams"`
+}
+
+func getMetadata(videoPath string) (videoMetadata, error) {
+	cmd := exec.Command("ffprobe",
+		"-v", "quiet",
+		"-show_streams",
+		"-select_streams", "v",
+		"-show_format",
+		"-print_format", "json",
+		videoPath,
+	)
+
+	cmd.Stderr = os.Stderr
+
+	output, err := cmd.Output()
+	if err != nil {
+		return videoMetadata{}, fmt.Errorf("failed to get metadata: %w", err)
+	}
+
+	var metadata videoMetadata
+	if err := json.Unmarshal(output, &metadata); err != nil {
+		return videoMetadata{}, fmt.Errorf("failed to unmarshal metadata: %w", err)
+	}
+
+	return metadata, nil
+}
+
 func loadFrames(videoPath string) ([]Frame, error) {
+
+	metadata, err := getMetadata(videoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metadata: %w", err)
+	}
+
+	if len(metadata.Streams) == 0 {
+		return nil, fmt.Errorf("no video streams found")
+	}
+
 	file, err := os.Open(videoPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open video file %w", err)
@@ -25,7 +71,6 @@ func loadFrames(videoPath string) ([]Frame, error) {
 		"-hide_banner",
 		"-loglevel", "error",
 		"-i", "pipe:0",
-		"-vf", "scale=480:270",
 		"-f", "rawvideo",
 		"-pix_fmt", "yuv422p",
 		"pipe:1",
@@ -44,8 +89,10 @@ func loadFrames(videoPath string) ([]Frame, error) {
 		return nil, err
 	}
 
+	stream := metadata.Streams[0]
+
 	// Calculate the size of each frame
-	frameSize := 480 * 270 * 2 // 480x270 pixels, 2 bytes per pixel
+	frameSize := stream.Width * stream.Height * 2 // YUV422 so 2 bytes per pixel
 
 	// Create a buffer to hold each frame
 	buf := make([]byte, frameSize)
@@ -68,8 +115,8 @@ func loadFrames(videoPath string) ([]Frame, error) {
 		// Create a new Frame and append it to frames
 		frame := Frame{
 			YUVData:     append([]byte(nil), buf[:n]...),
-			Width:       480,
-			Height:      270,
+			Width:       stream.Width,
+			Height:      stream.Height,
 			FrameNumber: len(frames),
 		}
 		frames = append(frames, frame)
