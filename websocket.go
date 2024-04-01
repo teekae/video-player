@@ -34,12 +34,6 @@ func serveWs(frames []Frame) func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type SendFrame struct {
-	Frame
-	FrameNumber int `json:"frameNumber"`
-	TotalFrames int `json:"totalFrames"`
-}
-
 type Message struct {
 	Type    string          `json:"type"`
 	Payload json.RawMessage `json:"payload"`
@@ -49,25 +43,43 @@ type RequestFrame struct {
 	Frame int `json:"frame"`
 }
 
+type Metadata struct {
+	FrameCount int `json:"frameCount"`
+}
+
 func sendFrame(ws *websocket.Conn, frames []Frame, frameNumber int) error {
 	if frameNumber >= len(frames) {
 		return fmt.Errorf("Frame number %d out of range %d", frameNumber, len(frames))
 	}
-	err := ws.WriteJSON(SendFrame{frames[frameNumber],
-		frameNumber,
-		len(frames)})
+
+	payload, err := json.Marshal(frames[frameNumber])
 	if err != nil {
-		log.Println("write:", err)
-		return err
+		return fmt.Errorf("Failed to marshal frame %d: %w", frameNumber, err)
+	}
+
+	err = ws.WriteJSON(Message{
+		Type:    "frame",
+		Payload: payload})
+	if err != nil {
+		return fmt.Errorf("Failed to send frame %d: %w", frameNumber, err)
 	}
 	return nil
 }
 
 // websocketServer is called for every new inbound WebSocket
 func websocketServer(ws *websocket.Conn, frames []Frame, ctx context.Context) error {
-	err := sendFrame(ws, frames, 0)
+
+	// Send metadata
+	payload, err := json.Marshal(Metadata{FrameCount: len(frames)})
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to marshal metadata: %w", err)
+	}
+	err = ws.WriteJSON(Message{
+		Type:    "metadata",
+		Payload: payload})
+
+	if err != nil {
+		return fmt.Errorf("Failed to send metadata: %w", err)
 	}
 
 	for {
@@ -80,8 +92,7 @@ func websocketServer(ws *websocket.Conn, frames []Frame, ctx context.Context) er
 			var msg Message
 			err := ws.ReadJSON(&msg)
 			if err != nil {
-				log.Println("read:", err)
-				continue
+				return fmt.Errorf("Failed to read message: %w", err)
 			}
 			if msg.Type == "request-frame" {
 				var reqFrame RequestFrame

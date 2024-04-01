@@ -1,16 +1,20 @@
+import { Frame } from "./frame";
+
 export type GL = {
+  gl: WebGLRenderingContext;
   program: WebGLProgram;
   yTexture: WebGLTexture;
   uTexture: WebGLTexture;
   vTexture: WebGLTexture;
 };
 
-export const initGL = (canvas: HTMLCanvasElement): WebGLRenderingContext => {
+export const initGL = (canvas: HTMLCanvasElement): GL => {
   const gl = canvas.getContext("webgl");
   if (!gl) {
     throw new Error("No webgl");
   }
-  return gl;
+
+  return createProgram(gl);
 };
 
 const createVertexShader = (gl: WebGLRenderingContext): WebGLShader => {
@@ -94,7 +98,7 @@ const createTexture = (
   return texture;
 };
 
-export const createProgram = (gl: WebGLRenderingContext): GL => {
+const createProgram = (gl: WebGLRenderingContext): GL => {
   const program = gl.createProgram();
   if (!program) {
     throw new Error("Error creating program");
@@ -151,9 +155,77 @@ export const createProgram = (gl: WebGLRenderingContext): GL => {
 
   // Create textures for the Y, U, and V components
   return {
+    gl,
     program,
-    yTexture: yTexture,
-    uTexture: uTexture,
-    vTexture: vTexture,
+    yTexture,
+    uTexture,
+    vTexture,
   };
+};
+
+export const updateTextures = (wgl: GL, frame: Frame): void => {
+  const width = frame.width;
+  const height = frame.height;
+
+  const ySize = width * height;
+  const uSize = (width * height) / 2;
+  const vSize = (width * height) / 2;
+
+  const binaryString = atob(frame.yuvData);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  // Upload the YUV data to the textures
+  const yData = new Uint8Array(bytes.slice(0, ySize));
+  const uData = new Uint8Array(bytes.slice(ySize, ySize + uSize));
+  const vData = new Uint8Array(
+    bytes.slice(ySize + uSize, ySize + uSize + vSize)
+  );
+
+  const { gl, yTexture, uTexture, vTexture } = wgl;
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, yTexture);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.LUMINANCE,
+    width,
+    height,
+    0,
+    gl.LUMINANCE,
+    gl.UNSIGNED_BYTE,
+    yData
+  );
+
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, uTexture);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.LUMINANCE,
+    width / 2,
+    height,
+    0,
+    gl.LUMINANCE,
+    gl.UNSIGNED_BYTE,
+    uData
+  );
+
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, vTexture);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.LUMINANCE,
+    width / 2,
+    height,
+    0,
+    gl.LUMINANCE,
+    gl.UNSIGNED_BYTE,
+    vData
+  );
 };

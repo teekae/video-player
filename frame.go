@@ -8,10 +8,10 @@ import (
 )
 
 type Frame struct {
-	YUVData   []byte `json:"yuvData"`
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
-	Timestamp int    `json:"timestamp"`
+	YUVData     []byte `json:"yuvData"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	FrameNumber int    `json:"frameNumber"`
 }
 
 func loadFrames(videoPath string) ([]Frame, error) {
@@ -62,9 +62,10 @@ func loadFrames(videoPath string) ([]Frame, error) {
 	frames := make([]Frame, 0)
 	for i := 0; i < len(output); i += frameSize {
 		frame := Frame{
-			YUVData: output[i : i+frameSize],
-			Width:   480,
-			Height:  270,
+			YUVData:     output[i : i+frameSize],
+			Width:       480,
+			Height:      270,
+			FrameNumber: i,
 		}
 		frames = append(frames, frame)
 	}
