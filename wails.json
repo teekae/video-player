@@ -1,0 +1,12 @@
+{
+  "name": "video-player",
+  "outputfilename": "video-player",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "teekae",
+    "email": "tomkirk@outlook.com"
+  }
+}
