@@ -44,30 +44,40 @@ func loadFrames(videoPath string) ([]Frame, error) {
 		return nil, err
 	}
 
-	// Read the output into a byte array
-	output, err := io.ReadAll(pipe)
-	if err != nil {
-		return nil, err
+	// Calculate the size of each frame
+	frameSize := 480 * 270 * 2 // 480x270 pixels, 2 bytes per pixel
+
+	// Create a buffer to hold each frame
+	buf := make([]byte, frameSize)
+
+	// Create a slice to hold the frames
+	frames := make([]Frame, 0)
+
+	// Read the output directly into frames
+	for {
+		// Read a frame's worth of data into buf
+		n, err := io.ReadFull(pipe, buf)
+		if err == io.EOF {
+			// We've reached the end of the file, so we're done
+			break
+		} else if err != nil {
+			// An error occurred, so return it
+			return nil, err
+		}
+
+		// Create a new Frame and append it to frames
+		frame := Frame{
+			YUVData:     append([]byte(nil), buf[:n]...),
+			Width:       480,
+			Height:      270,
+			FrameNumber: len(frames),
+		}
+		frames = append(frames, frame)
 	}
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
 		return nil, err
-	}
-
-	// Calculate the size of each frame
-	frameSize := 480 * 270 * 2 // yuv420p uses 1.5 bytes per pixel
-
-	// Split the output into frames
-	frames := make([]Frame, 0)
-	for i := 0; i < len(output); i += frameSize {
-		frame := Frame{
-			YUVData:     output[i : i+frameSize],
-			Width:       480,
-			Height:      270,
-			FrameNumber: i,
-		}
-		frames = append(frames, frame)
 	}
 
 	return frames, nil
